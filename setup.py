@@ -13,7 +13,6 @@ CLASSIFIERS = [
 ]
 
 EXTRAS_REQUIRE = {
-    "union": ["typeguard"],
     ':python_version == "3.6"': ["dataclasses"],
     "lint": ["pre-commit~=1.18"],
     "docs": ["sphinx"],
@@ -25,8 +24,7 @@ EXTRAS_REQUIRE = {
     ],
 }
 EXTRAS_REQUIRE["dev"] = (
-    EXTRAS_REQUIRE["union"]
-    + EXTRAS_REQUIRE["lint"]
+    EXTRAS_REQUIRE["lint"]
     + EXTRAS_REQUIRE["docs"]
     + EXTRAS_REQUIRE["tests"]
 )
@@ -46,7 +44,7 @@ setup(
     keywords=["marshmallow", "dataclass", "serialization"],
     classifiers=CLASSIFIERS,
     python_requires=">=3.6",
-    install_requires=["marshmallow>=3.0.0,<4.0", "typing-inspect"],
+    install_requires=["marshmallow>=3.0.0,<4.0", "typing-inspect", "typeguard"],
     extras_require=EXTRAS_REQUIRE,
     package_data={"marshmallow_dataclass": ["py.typed"]},
 )

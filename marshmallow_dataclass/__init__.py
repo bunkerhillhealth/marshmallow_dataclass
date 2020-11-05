@@ -60,8 +60,6 @@ import typing_inspect
 
 from typing import TypedDict
 
-from blib.attributes import SerializableAttribute, SerializableAttributeTag
-
 __all__ = ["dataclass", "add_schema", "class_schema", "field_for_schema", "NewType"]
 
 NoneType = type(None)
@@ -74,14 +72,6 @@ MEMBERS_WHITELIST: Set[str] = {"Meta"}
 MAX_CLASS_SCHEMA_CACHE_SIZE = 1024
 
 
-class BaseSchema(marshmallow.Schema):
-    TYPE_MAPPING = {
-        SerializableAttribute: marshmallow.fields.Mapping,
-        SerializableAttributeTag: marshmallow.fields.Mapping,
-        TypedDict: marshmallow.fields.Mapping,
-    }
-
-
 @overload
 def dataclass(
     _cls: Type[_U],
@@ -91,7 +81,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
+    base_schema: Optional[Type[marshmallow.Schema]] = None,
 ) -> Type[_U]:
     ...
 
@@ -104,7 +94,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
+    base_schema: Optional[Type[marshmallow.Schema]] = None,
 ) -> Callable[[Type[_U]], Type[_U]]:
     ...
 
@@ -120,7 +110,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
+    base_schema: Optional[Type[marshmallow.Schema]] = None,
 ) -> Union[Type[_U], Callable[[Type[_U]], Type[_U]]]:
     """
     This decorator does the same as dataclasses.dataclass, but also applies :func:`add_schema`.
@@ -197,7 +187,8 @@ def add_schema(_cls=None, base_schema=None):
     def decorator(clazz: Type[_U]) -> Type[_U]:
         # noinspection PyTypeHints
         clazz.Schema = class_schema(clazz, base_schema)  # type: ignore
-        clazz.to_dict = lambda self: type(self).Schema().dump(self)
+        clazz.to_dict = lambda x: clazz.Schema().dump(x)
+        clazz.from_dict = lambda x: clazz.Schema().load(x)
         return clazz
 
     return decorator(_cls) if _cls else decorator
@@ -367,6 +358,8 @@ def _field_by_type(
 ) -> Optional[Type[marshmallow.fields.Field]]:
     return (
         base_schema and base_schema.TYPE_MAPPING.get(typ)
+    ) or (
+        any(kw in str(typ) for kw in ["Serializable", "Mapping", "Dict"]) and dict
     ) or marshmallow.Schema.TYPE_MAPPING.get(typ)
 
 
@@ -475,13 +468,13 @@ def field_for_schema(
             child_type = field_for_schema(arguments[0], base_schema=base_schema)
             list_type = type_mapping.get(List, marshmallow.fields.List)
             return list_type(child_type, **metadata)
-        if origin in (tuple, Tuple):
+        elif origin in (tuple, Tuple):
             children = tuple(
                 field_for_schema(arg, base_schema=base_schema) for arg in arguments
             )
             tuple_type = type_mapping.get(Tuple, marshmallow.fields.Tuple)
             return tuple_type(children, **metadata)
-        elif origin in (dict, Dict):
+        elif origin in (dict, Dict):# or any(kw in str(type) for kw in ["Serializable", "Mapping", "Dict"]):
             dict_type = type_mapping.get(Dict, marshmallow.fields.Dict)
             return dict_type(
                 keys=field_for_schema(arguments[0], base_schema=base_schema),
