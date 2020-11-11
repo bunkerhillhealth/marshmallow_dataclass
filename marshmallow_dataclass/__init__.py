@@ -58,8 +58,6 @@ from typing import (
 import marshmallow
 import typing_inspect
 
-from typing import TypedDict
-
 __all__ = ["dataclass", "add_schema", "class_schema", "field_for_schema", "NewType"]
 
 NoneType = type(None)
@@ -359,6 +357,8 @@ def _field_by_type(
     return (
         base_schema and base_schema.TYPE_MAPPING.get(typ)
     ) or (
+        # Caution: This makes marshmallow treat any type with any of these
+        # keywords in the name as a dict.
         any(kw in str(typ) for kw in ["Serializable", "Mapping", "Dict"]) and dict
     ) or marshmallow.Schema.TYPE_MAPPING.get(typ)
 
@@ -474,7 +474,7 @@ def field_for_schema(
             )
             tuple_type = type_mapping.get(Tuple, marshmallow.fields.Tuple)
             return tuple_type(children, **metadata)
-        elif origin in (dict, Dict):# or any(kw in str(type) for kw in ["Serializable", "Mapping", "Dict"]):
+        elif origin in (dict, Dict):
             dict_type = type_mapping.get(Dict, marshmallow.fields.Dict)
             return dict_type(
                 keys=field_for_schema(arguments[0], base_schema=base_schema),
