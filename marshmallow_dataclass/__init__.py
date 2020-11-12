@@ -58,6 +58,8 @@ from typing import (
 import marshmallow
 import typing_inspect
 
+import blib.attributes as attributes
+
 __all__ = ["dataclass", "add_schema", "class_schema", "field_for_schema", "NewType"]
 
 NoneType = type(None)
@@ -69,6 +71,13 @@ MEMBERS_WHITELIST: Set[str] = {"Meta"}
 # Max number of generated schemas that class_schema keeps of generated schemas. Removes duplicates.
 MAX_CLASS_SCHEMA_CACHE_SIZE = 1024
 
+class BaseSchema(marshmallow.Schema):
+    TYPE_MAPPING = {
+        attributes.SerializableAttribute: marshmallow.fields.Mapping,
+        attributes.SerializableAttributeTag: marshmallow.fields.Mapping,
+        attributes.SerializableOutputAttribute: marshmallow.fields.Mapping,
+    }
+
 
 @overload
 def dataclass(
@@ -79,7 +88,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = None,
+    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
 ) -> Type[_U]:
     ...
 
@@ -92,7 +101,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = None,
+    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
 ) -> Callable[[Type[_U]], Type[_U]]:
     ...
 
@@ -108,7 +117,7 @@ def dataclass(
     order: bool = False,
     unsafe_hash: bool = False,
     frozen: bool = False,
-    base_schema: Optional[Type[marshmallow.Schema]] = None,
+    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
 ) -> Union[Type[_U], Callable[[Type[_U]], Type[_U]]]:
     """
     This decorator does the same as dataclasses.dataclass, but also applies :func:`add_schema`.
@@ -149,19 +158,19 @@ def add_schema(_cls: Type[_U]) -> Type[_U]:
 
 @overload
 def add_schema(
-    base_schema: Type[marshmallow.Schema] = None,
+    base_schema: Type[marshmallow.Schema] = BaseSchema,
 ) -> Callable[[Type[_U]], Type[_U]]:
     ...
 
 
 @overload
 def add_schema(
-    _cls: Type[_U], base_schema: Type[marshmallow.Schema] = None
+    _cls: Type[_U], base_schema: Type[marshmallow.Schema] = BaseSchema
 ) -> Type[_U]:
     ...
 
 
-def add_schema(_cls=None, base_schema=None):
+def add_schema(_cls=None, base_schema=BaseSchema):
     """
     This decorator adds a marshmallow schema as the 'Schema' attribute in a dataclass.
     It uses :func:`class_schema` internally.
@@ -193,7 +202,7 @@ def add_schema(_cls=None, base_schema=None):
 
 
 def class_schema(
-    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = None
+    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema
 ) -> Type[marshmallow.Schema]:
 
     """
@@ -307,7 +316,7 @@ def class_schema(
 
 @lru_cache(maxsize=MAX_CLASS_SCHEMA_CACHE_SIZE)
 def _internal_class_schema(
-    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = None
+    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema
 ) -> Type[marshmallow.Schema]:
     try:
         # noinspection PyDataclass
@@ -356,10 +365,6 @@ def _field_by_type(
 ) -> Optional[Type[marshmallow.fields.Field]]:
     return (
         base_schema and base_schema.TYPE_MAPPING.get(typ)
-    ) or (
-        # Caution: This makes marshmallow treat any type with any of these
-        # keywords in the name as a dict.
-        any(kw in str(typ) for kw in ["Serializable", "Mapping", "Dict"]) and dict
     ) or marshmallow.Schema.TYPE_MAPPING.get(typ)
 
 
@@ -405,7 +410,7 @@ def field_for_schema(
     typ: type,
     default=marshmallow.missing,
     metadata: Mapping[str, Any] = None,
-    base_schema: Optional[Type[marshmallow.Schema]] = None,
+    base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema,
 ) -> marshmallow.fields.Field:
     """
     Get a marshmallow Field corresponding to the given python type.
@@ -536,7 +541,7 @@ def field_for_schema(
 
 
 def _base_schema(
-    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = None
+    clazz: type, base_schema: Optional[Type[marshmallow.Schema]] = BaseSchema
 ) -> Type[marshmallow.Schema]:
     """
     Base schema factory that creates a schema for `clazz` derived either from `base_schema`
