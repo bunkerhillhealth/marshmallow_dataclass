@@ -58,7 +58,11 @@ from typing import (
 import marshmallow
 import typing_inspect
 
-import blib.attributes as attributes
+from blib.attributes.types import (
+    SerializableAttribute,
+    SerializableAttributeTag,
+    SerializableOutputAttribute,
+)
 
 __all__ = ["dataclass", "add_schema", "class_schema", "field_for_schema", "NewType"]
 
@@ -73,9 +77,9 @@ MAX_CLASS_SCHEMA_CACHE_SIZE = 1024
 
 class BaseSchema(marshmallow.Schema):
     TYPE_MAPPING = {
-        attributes.SerializableAttribute: marshmallow.fields.Mapping,
-        attributes.SerializableAttributeTag: marshmallow.fields.Mapping,
-        attributes.SerializableOutputAttribute: marshmallow.fields.Mapping,
+        SerializableAttribute: marshmallow.fields.Mapping,
+        SerializableAttributeTag: marshmallow.fields.Mapping,
+        SerializableOutputAttribute: marshmallow.fields.Mapping,
     }
 
 
